@@ -28,7 +28,7 @@ my $fn_pid = "$dir_state/pid";
 my $cleanup = 60; # every 1 min
 my $expire = 7200; # after 2h
 my $fn_master_passwd= "/etc/stsbl/scmcmasterpasswd";
-my $fn_user_passwd = "/etc/stsbl/scmcpasswd.new";
+my $fn_user_passwd = "/etc/stsbl/scmcpasswd";
 
 my $m_act = qr/[a-z][a-z0-9._-]{0,31}/;
 my $m_srv = qr/\w{0,32}/;
