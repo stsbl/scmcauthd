@@ -1,4 +1,4 @@
 #!/bin/sh
 set -e
 
-systemctl stop scmcauthd.service
+systemctl stop scmcauthd.service || true
