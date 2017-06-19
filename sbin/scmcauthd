@@ -1,0 +1,572 @@
+#!/usr/bin/perl -T -CSDAL
+
+use warnings;
+use strict;
+use utf8;
+use Bytes::Random::Secure;
+use Getopt::Long;
+use IServ::DB;
+use JSON;
+use POSIX qw(setsid);
+use Socket;
+use Sys::Syslog;
+use Stsbl::IServ::SCMC;
+use Stsbl::IServ::Security;
+
+undef %ENV;
+$ENV{PATH} = "";
+
+# disable output buffering
+$| = 1;
+
+$IServ::DB::user = "scmcauthd";
+
+my $prog = "scmcauthd";
+my $dir_state = "/run/$prog";
+my $fn_socket = "$dir_state/socket";
+my $fn_pid = "$dir_state/pid";
+my $cleanup = 60; # every 1 min
+my $expire = 7200; # after 2h
+my $fn_master_passwd= "/etc/stsbl/scmcmasterpasswd";
+my $fn_user_passwd = "/etc/stsbl/scmcpasswd.new";
+
+my $m_act = qr/[a-z][a-z0-9._-]{0,31}/;
+my $m_srv = qr/\w{0,32}/;
+my $m_text = qr/[\x20-\x7e]{1,256}/;
+my $m_port = qr/\d{1,5}/;
+my $m_bool = qr/[01]/;
+my $m_ip = qr/[0-9a-f.:]{1,64}/;
+my $m_legacy_hash = qr/^\$2y/;
+my $m_dummy = qr/^$/;
+
+my %m_info = (
+  protocol => $m_text,
+  encrypted => $m_bool,
+  server_addr => $m_ip,
+  server_port => $m_port,
+  client_addr => $m_ip,
+  client_agent => $m_text,
+  _dummy => $m_dummy,
+);
+
+use constant MIN_UID => 500;
+
+my ($daemon, $help);
+GetOptions("daemon" => \$daemon, "help" => \$help) or $help = 1;
+
+print <<USAGE and exit if @ARGV != 0 || $help;
+Usage: $prog [options]
+Options
+ -d, --daemon           run as daemon
+ -h, --help             show this help
+USAGE
+
+die "must not run as root\n" if $> == 0;
+die "$dir_state is not writeable!" if not -w $dir_state;
+
+my $json = JSON->new->ascii->allow_nonref;
+my $rnd = Bytes::Random::Secure->new(NonBlocking => 1);
+my %sess;
+
+$SIG{ALRM} = "IGNORE";
+$SIG{PIPE} = "IGNORE";
+$SIG{CHLD} = "IGNORE";
+
+sub logger($)
+{
+  my ($msg) = @_;
+  print "$msg\n";
+  syslog "info|auth", $msg or warn $!;
+}
+
+sub crypt_check($$)
+{
+  my ($plain, $salt) = @_;
+  return if not defined $plain or $plain eq "";
+  return if not defined $salt or $salt eq "";
+  my $crypt = crypt $plain, $salt;
+  defined $crypt and $crypt eq $salt;
+}
+
+sub genpass($)
+{
+  my ($len) = @_;
+  my $sel = join "", "A".."Z", "a".."z", "0".."9";
+  $rnd->string_from($sel, $len);
+}
+
+sub gentoken()
+{
+  $rnd->bytes_base64(32, ""); # 256 bit
+}
+
+sub async(&)
+{
+  my ($sub) = @_;
+  my $pid = fork;
+  if (not defined $pid)
+  {
+    logger "fork failed: $!\n";
+  }
+  elsif (not $pid)
+  {
+    &$sub();
+    exit;
+  }
+}
+
+sub upgrade_user_password($$)
+{
+  my ($act, $userpwd) = @_;
+  my $fp;
+  if (not open $fp, "|-", "/usr/bin/sudo", "-n",
+    "/usr/lib/iserv/scmcpasswdupgradeuser", $act)
+  {
+    logger "failed to exec sudo";
+    return;
+  }
+  print $fp "$userpwd\n";
+  close $fp;
+  if (not $?)
+  {
+    logger "failed to upgrade user password for $act";
+    return;
+  }
+  logger "user password upgrade done for $act";
+}
+
+sub chkuserpwd($$)
+{
+  my ($act, $userpwd) = @_;
+  my (undef, undef, $uid) = getpwnam $act;
+  if (not defined $uid)
+  {
+    return "user $act unknown";
+  }
+  if ($uid < MIN_UID)
+  {
+    return "user $act has too low uid";
+  }
+  eval { IServ::Valid::User $act; };
+  IServ::DB::Disconnect;
+  return $@ if $@;
+
+  my @usrnam = getusrnam $act;
+  
+  return "user $act has no user password" if not defined $usrnam[1];
+  # use legacy crypt and upgrade user password if it is using old hash
+  if ($usrnam[1] =~ $m_legacy_hash)
+  {
+    my $legacy_crypt;
+    eval
+    {
+      $legacy_crypt = legacy_crypt $userpwd, $usrnam[2];
+    };
+    return "legacy crypt failed: $@" if $@;
+
+    return "user password for $act wrong" if not $legacy_crypt eq $usrnam[1];
+
+    async { upgrade_user_password $act, $userpwd; };
+  } else
+  {
+    if (not crypt_check $userpwd, $usrnam[1])
+    {
+      return "user password for $act wrong";
+    }
+    0;
+  }
+}
+
+sub upgrade_master_password($)
+{
+  logger "upgrading master password";
+  my $masterpwd = shift;
+  my $fp;
+  if (not open $fp, "|-", "/usr/bin/sudo", "-n",
+    "/usr/lib/iserv/scmcpasswdupgrademaster")
+  {
+    logger "failed to exec sudo";
+    return;
+  }
+  print $fp "$masterpwd\n";
+  close $fp;
+  if (not $?)
+  {
+    logger "failed to upgrade master password";
+    return;
+  }
+  logger "master password upgrade done";
+}
+
+sub chkmasterpwd($)
+{
+  my $masterpwd = shift;
+  return "master password unset" if (-s $fn_master_passwd == 0);
+  open my $fp, "<", $fn_master_passwd or return;
+  my $upgrade = 0;
+  my $crypt;
+  my $old_salt;
+  while (<$fp>)
+  {
+    chomp;
+    $upgrade = 1 if $_ =~ $m_legacy_hash; 
+    ($crypt, $old_salt) = split /:/ if $upgrade;
+    $crypt = $_ unless $upgrade;
+  }
+
+  if ($upgrade)
+  {
+    my $legacy_crypt;
+    eval
+    {
+      $legacy_crypt = legacy_crypt $masterpwd, $old_salt;
+    };
+    return "legacy crypt failed: $@" if $@;
+
+    return "master password wrong" if not $legacy_crypt eq $crypt;
+    async { upgrade_master_password $masterpwd; };
+    0;
+  }
+  else
+  {
+    if (not crypt_check $masterpwd, $crypt)
+    {
+      return "master password wrong";
+    }
+    0;
+  }
+}
+sub session_log_insert($$%)
+{
+  my ($act, $resource, %info) = @_;
+  IServ::DB::Do 
+    "INSERT INTO session_log (
+      act, service, resource, protocol, encrypted, server_addr,
+      server_port, client_addr, client_agent, pid)
+    VALUES (?, 'iserv', ?, ?, ?, ?, ?, ?, ?, ?)", 
+    $act, $resource, $info{protocol}, $info{encrypted}, $info{server_addr},
+    $info{server_port}, $info{client_addr}, $info{client_agent}, $$;
+  IServ::DB::DBH->last_insert_id(undef, undef, "session_log", "id");
+  IServ::DB::Disconnect;
+}
+
+sub session_log_update($$)
+{
+  my ($id, $reason) = @_;
+  return unless defined $id;
+  IServ::DB::Do   
+    "UPDATE session_log SET logout = now(), logout_reason = ? WHERE id = ?",
+    $reason, $id;
+  IServ::DB::Disconnect;
+}
+
+sub session_open($%)
+{
+  my ($act, %info) = @_;
+  my $sid = genpass 32;
+  my $spw = genpass 64;
+  $sess{$spw} = { act => $act, sid => $sid };
+  $sess{$spw}{log_id} = session_log_insert $act, "scmc", %info;
+  $sess{$spw}{last_used} = time; 
+  "OK $sid $spw";
+}
+
+sub session_close($$)
+{
+  my ($spw, $reason) = @_;
+  session_log_update delete $sess{$spw}{log_id}, $reason;
+  delete $sess{$spw};
+  "OK";
+}
+
+sub get($)
+{
+  my ($c) = @_;
+  my ($size, $data) = (0, 0);
+  (read $c, $size, 2) == 2 or return;
+  $size = unpack "n", $size;
+  (read $c, $data, $size) == $size or return;
+  $data;
+}
+
+sub put($$)
+{
+  my ($c, $data) = @_;
+  die "too much data\n" if length $data > 0xffff;
+  my $size = pack "n", length $data;
+  print $c $size, $data;
+}
+
+sub talk($)
+{
+  my ($c) = @_;
+  my @in;
+  eval
+  {
+    local $SIG{ALRM} = sub { die "timeout\n" };
+    alarm 0;
+    my $in;
+    push @in, $in while length ($in = get $c);
+    alarm 0;
+  };
+  $@ eq "timeout\n" and return $@;
+  $@ and die $@;
+  @in >= 3 or return "read error";
+
+  logger ref @in." arguments provided";
+
+  my ($act, $pwd, $srv) = @in;
+  my ($masterpwd, $userpwd);
+  
+  if (@in >= 4)
+  {
+    eval { ($masterpwd, $userpwd) = @{ $json->decode($in[3]) }; };
+    return "unexpected json decoding error: $@" if $@;
+  }
+
+  ($act) = $act =~ /^($m_act)$/ or return "invalid account";
+  ($srv) = $srv =~ /^($m_srv)$/ or return "invalid service";
+
+  my %info;
+  if (@in >= 5)
+  {
+    %info = eval { %{ $json->decode($in[4]) }; };
+    return "unexpected json decoding error: $@" if $@;
+    for (keys %info)
+    {
+      logger "got info parameter $_ for $act" if not $_ eq "_dummy";
+      $info{$_} = int $info{$_} if JSON::is_bool $info{$_};
+      
+      unless (
+        defined $m_info{$_} and
+        defined $info{$_} and
+        not ref $info{$_} and
+        $info{$_} =~ m/^$m_info{$_}$/)
+      {
+        logger "invalid info parameter $_: $info{$_}";
+        delete $info{$_};
+      }
+
+      delete $info{$_} if $_ eq "_dummy";
+    }
+  }
+  
+  my $scmcsesspw;
+  if (@in > 5)
+  {
+    $scmcsesspw = $in[5];
+  } else {
+    logger "no scmc session password provided";
+  }
+ 
+  my $log_ip = $info{client_addr} // "?"; 
+  my $sessauth_login = 0;
+  eval
+  {
+    local $ENV{SESSPW} = $pwd;
+    open my $fh, "-|", "/usr/bin/sudo", "-n", 
+      "/usr/lib/iserv/scmc_auth_level", $act or die $!;
+    while (my $line = <$fh>) 
+    {
+      logger "$act has sessauth level $line";
+      $sessauth_login = 1 if $line =~ /^(admin|user)$/;
+    }
+  };
+  put $c, "NO sessauth error" if $@;
+  return "scmc_auth_level for $act from $log_ip failed: $@" if $@;
+  put $c, "NO sessauth login failed" if not $sessauth_login;
+  return "sessauth login for $act from $log_ip failed" if not $sessauth_login;
+
+  if ($srv eq "scmc_sess_open")
+  {
+    set_credentials $act, $pwd;
+    eval
+    {
+      req_priv "scmc_access_frontend";
+      # Disconnect from database to prevent stucking connection
+      # (Server beendete die Verbindung unerwartet
+      # Das heißt wahrscheinlich, dass der Server abnormal beendete
+      # bevor oder während die Anweisung bearbeitet wurde. 
+      # at /usr/share/perl5/IServ/DB.pm line 47.)
+      IServ::DB::Disconnect;
+    };
+    put $c, "NO privilege missing" if $@;
+    return "insufficient privilege for $act: $@" if $@;
+
+    if (not defined $masterpwd)
+    {
+      put $c, "NO master password missing";
+      return "session open for $act from $log_ip failed: master password missing";
+    }
+    
+    if (not defined $userpwd)
+    {
+      put $c, "NO user password missing";
+      return "session open for $act from $log_ip failed: user password missing";
+    }
+
+    if (my $err = chkmasterpwd $masterpwd)
+    {
+      put $c, "NO $err";
+      return "session open for $act from $log_ip failed: $err";
+    }
+
+    if (my $err = chkuserpwd $act, $userpwd)
+    {
+      put $c, "NO $err";
+      return "session open for $act from $log_ip failed: $err";
+    }
+
+    put $c, session_open $act, %info;
+    return "session opened for $act from $log_ip";
+  } elsif ($srv eq "scmc_sess_close")
+  {
+    set_credentials $act, $pwd;
+    eval
+    {
+      req_priv "scmc_access_frontend";
+      # Disconnect from database to prevent stucking connection
+      # (Server beendete die Verbindung unerwartet
+      # Das heißt wahrscheinlich, dass der Server abnormal beendete
+      # bevor oder während die Anweisung bearbeitet wurde. 
+      # at /usr/share/perl5/IServ/DB.pm line 47.)
+      IServ::DB::Disconnect;
+    };
+    put $c, "NO privilege missing" if $@;
+    return "insufficient privilege for $act: $@" if $@;
+
+    if ($sess{$scmcsesspw} and $sess{$scmcsesspw}{act} eq $act)
+    {
+      put $c, session_close $scmcsesspw, "closed";
+      return "session closed for $act from $log_ip";
+    } else
+    {
+      put $c, "NO auth error";
+      return "session close failed for $act from $log_ip";
+    }
+  } else
+  {
+    set_credentials $act, $pwd;
+    eval
+    {
+      req_priv "scmc_access_frontend";
+      # Disconnect from database to prevent stucking connection
+      # (Server beendete die Verbindung unerwartet
+      # Das heißt wahrscheinlich, dass der Server abnormal beendete
+      # bevor oder während die Anweisung bearbeitet wurde. 
+      # at /usr/share/perl5/IServ/DB.pm line 47.)
+      IServ::DB::Disconnect;
+    };
+    put $c, "NO privilege missing" if $@;
+    return "insufficient privilege for $act: $@" if $@;
+
+    if ($sess{$scmcsesspw} and $sess{$scmcsesspw}{act} eq $act)
+    {
+      put $c, "OK";
+      $sess{$scmcsesspw}{last_used} = time;
+      return "session authenticated for $act to $srv";
+    }
+    elsif (defined $scmcsesspw and not defined $sess{$scmcsesspw})
+    {
+      put $c, "NO auth error";
+      return "authentication failed for $act to $srv (wrong scmc session password)";
+    } else 
+    {
+      if (my $err = chkmasterpwd $masterpwd)
+      {
+        put $c, "NO auth error";
+        return "authentication failed for $act to $srv ($err)";
+      }
+
+      if (my $err = chkuserpwd $act, $pwd)
+      {
+	put $c, "NO auth error";
+	return "authentication failed for $act to $srv ($err)";
+      } else
+      {
+	put $c, "OK";
+	return "authentication successful for $act to $srv";
+      }
+      die "cannot get here\n";
+    }
+  }
+}
+
+unlink $fn_socket;
+socket my $socket, PF_UNIX, SOCK_STREAM, 0 or die "socket: $!\n";
+bind $socket, sockaddr_un $fn_socket or die "bind: $!\n";
+chmod 0777, $fn_socket or die "chmod: $!\n";
+listen $socket, SOMAXCONN or die "listen: $!\n";
+
+if ($daemon)
+{
+  chdir "/" or die "chdir: $!\n";
+  defined(my $pid = fork) or die "fork: $!\n";
+  if ($pid)
+  {
+    open my $fp, ">", $fn_pid or die "write pid: $!\n";
+    print $fp "$pid\n";
+    close $fp;
+    exit;
+  }
+  setsid or die $!;
+
+  open STDIN, "/dev/null" or die "redirect stdin: $!\n";
+  open STDOUT, ">/dev/null" or die "redirect stdout: $!\n";
+  open STDERR, ">/dev/null" or die "redirect stderr: $!\n";
+}
+
+gentoken; # init random, may take a few seconds on first call
+logger "startup";
+umask 0007;
+my $last_cleanup = time;
+eval
+{
+  local $SIG{INT} = sub { die "got SIGINT\n"; };
+  local $SIG{TERM} = sub { die "got SIGTERM\n"; };
+  while (1)
+  {
+    my ($res, $c);
+    eval
+    {
+      local $SIG{ALRM} = sub { die "timeout\n"; };
+      alarm $cleanup;
+      $res = accept $c, $socket;
+      binmode $c, ":raw";
+      alarm 0;
+    };
+    die $@ if $@ and $@ ne "timeout\n";
+
+    if ($res)
+    {
+      logger talk $c;
+      close $c;
+    }
+
+    my $time = time;
+    if ($last_cleanup <= $time - $cleanup)
+    {
+      for my $spw (keys %sess)
+      {
+        my $atime = $sess{$spw}{last_used};
+        if (not $atime or $atime <= $time - $expire)
+        {
+          my $act = $sess{$spw}{act};
+          session_close $spw, "expired";
+          logger "session expired for $act";
+        }
+      }
+      $last_cleanup = $time;
+    } 
+  }   
+};
+logger $@ if $@;
+
+unlink $fn_socket;
+for my $spw (keys %sess)
+{
+  my $act = $sess{$spw}{act};
+  session_close $spw, "killed";
+  logger "session killed for $act";
+}
+logger "shutdown";

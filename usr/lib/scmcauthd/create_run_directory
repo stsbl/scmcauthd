@@ -1,0 +1,8 @@
+#!/bin/sh -e
+
+NAME=scmcauthd
+STATE=/run/$NAME
+
+mkdir -p $STATE
+chown $NAME:$NAME $STATE || exit 1
+chmod 0710 $STATE || exit 1

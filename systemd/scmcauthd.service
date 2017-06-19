@@ -1,0 +1,16 @@
+# scmcauthd
+[Unit]
+Description=Start scmcauthd
+After=postgresql.service
+
+[Service]
+Type=forking
+RemainAfterExit=yes
+SyslogIdentifier=scmcauthd
+PIDFile=/run/scmcauthd/pid
+ExecStartPre=/usr/lib/scmcauthd/create_run_directory
+ExecStart=/usr/sbin/scmcauthd -d
+User=scmcauthd
+
+[Install]
+WantedBy=multi-user.target

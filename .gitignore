@@ -1,0 +1,5 @@
+debian/scmcauthd/*
+debian/scmcauthd.substvars
+debian/scmcauthd.debhelper.log
+debian/files
+debian/debhelper-build-stamp
