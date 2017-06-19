@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "remove" ]
+then
+  delgroup --system scmcauthd
+  delgroup --system scmcshadow
+  deluser --system scmcauthd
+
+  rmdir /run/scmauthd || true
+fi
+

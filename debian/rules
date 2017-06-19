@@ -10,6 +10,7 @@ binary-indep:
 	dh_testroot
 	dh_prep
 	dh_testroot
+	dh_installinit
 	dh_installchangelogs 
 	dh_compress
 	dh_fixperms

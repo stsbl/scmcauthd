@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+
+addgroup --system scmcauthd
+addgroup --system scmcshadow
+
+adduser --system --home=/run/scmcauthd --no-create-home --ingroup scmcauthd scmcauthd
+usermod scmcauthd -g scmcauthd -aG scmcshadow
+
+systemctl start scmcauthd.service
