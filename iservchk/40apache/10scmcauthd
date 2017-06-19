@@ -1,0 +1,3 @@
+Test "add www-data to scmcauthd"
+  "grep '^scmcauthd:.*\bwww-data\b' /etc/group"
+  "usermod -G scmcauthd -a www-data"
