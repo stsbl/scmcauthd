@@ -1,5 +1,6 @@
 #!/usr/bin/perl -T -CSDAL
 
+# debug: killall -v scmcauthd; sudo -u scmcauthd scmcauthd
 use warnings;
 use strict;
 use utf8;
@@ -77,15 +78,6 @@ sub logger($)
   my ($msg) = @_;
   print "$msg\n";
   syslog "info|auth", $msg or warn $!;
-}
-
-sub crypt_check($$)
-{
-  my ($plain, $salt) = @_;
-  return if not defined $plain or $plain eq "";
-  return if not defined $salt or $salt eq "";
-  my $crypt = crypt $plain, $salt;
-  defined $crypt and $crypt eq $salt;
 }
 
 sub genpass($)
@@ -351,35 +343,34 @@ sub talk($)
     }
   }
   
+  my $log_ip = $info{client_addr} // "?";
   my $scmcsesspw;
   if (@in > 5)
   {
     $scmcsesspw = $in[5];
   } else {
-    logger "no scmc session password provided";
+    logger "no scmc session password for $act from $log_ip provided";
   }
  
-  my $log_ip = $info{client_addr} // "?"; 
-  my $sessauth_login = 0;
+  set_credentials $act, $pwd;
   eval
   {
-    local $ENV{SESSPW} = $pwd;
-    open my $fh, "-|", "/usr/bin/sudo", "-n", 
-      "/usr/lib/iserv/scmc_auth_level", $act or die $!;
-    while (my $line = <$fh>) 
-    {
-      logger "$act has sessauth level $line";
-      $sessauth_login = 1 if $line =~ /^(admin|user)$/;
-    }
+    sessauth_auth "scmcauthd";
   };
-  put $c, "NO sessauth error" if $@;
-  return "scmc_auth_level for $act from $log_ip failed: $@" if $@;
-  put $c, "NO sessauth login failed" if not $sessauth_login;
-  return "sessauth login for $act from $log_ip failed" if not $sessauth_login;
+  
+  put $c, "NO sessauth login failed" if $@;
+  return "sessauth login for $act from $log_ip failed: $@" if $@;
+
+  eval
+  {
+    req_auth;
+  };
+
+  put $c, "NO auth failed" if $@;
+  return "$act has too low auth level " . auth_level . " from $log_ip: $@" if $@;
 
   if ($srv eq "scmc_sess_open")
   {
-    set_credentials $act, $pwd;
     eval
     {
       req_priv "scmc_access_frontend";
@@ -421,7 +412,6 @@ sub talk($)
     return "session opened for $act from $log_ip";
   } elsif ($srv eq "scmc_sess_close")
   {
-    set_credentials $act, $pwd;
     eval
     {
       req_priv "scmc_access_frontend";
@@ -446,7 +436,6 @@ sub talk($)
     }
   } else
   {
-    set_credentials $act, $pwd;
     eval
     {
       req_priv "scmc_access_frontend";

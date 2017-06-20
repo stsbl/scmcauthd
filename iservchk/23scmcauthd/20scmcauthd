@@ -1,1 +1,6 @@
+# allow scmcauthd to talk with sessauthd
+Test "add scmcauthd to sasl"
+  "grep '^sasl:.*\bscmcauthd\b' /etc/group"
+  "usermod -G sasl -a scmcauthd"
+
 Start scmcauthd
