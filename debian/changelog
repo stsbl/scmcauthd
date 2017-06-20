@@ -1,3 +1,10 @@
+scmcauthd (17.06.20-3) experimental; urgency=medium
+
+  [ Felix Jacobi ]
+  * Replaced create_run_directory by configuration for systemd-tmp-files.
+
+ -- Stadtteilschule Blankenese <repository@stsbl.de>  Tue, 20 Jun 2017 16:46:48 +0200
+
 scmcauthd (17.06.20-2) experimental; urgency=medium
 
   [ Felix Jacobi ]
