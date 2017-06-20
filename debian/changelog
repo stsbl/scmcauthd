@@ -1,3 +1,12 @@
+scmcauthd (17.06.20-0) experimental; urgency=medium
+
+  [ Felix Jacobi ]
+  * Added scmcauth client.
+  * Don't use sudo, talk directly to sessauthd (requires membership in sasl).
+  * Moved crypt_check to Stsbl::IServ::SCMC.
+
+ -- Stadtteilschule Blankenese <repository@stsbl.de>  Tue, 20 Jun 2017 15:11:42 +0200
+
 scmcauthd (17.06.19-1) experimental; urgency=medium
 
   [ Felix Jacobi ]
