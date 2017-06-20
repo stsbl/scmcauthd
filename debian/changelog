@@ -1,3 +1,14 @@
+scmcauthd (17.06.20-2) experimental; urgency=medium
+
+  [ Felix Jacobi ]
+  * maintenance scripts: Only do removal operations on removal.
+  * systemd: Start scmcauthd after sessauthd.
+  * postinst: Reload systemd.
+  * Add dependency on systemd.
+  * Fixed After configuration for systemd.
+
+ -- Stadtteilschule Blankenese <repository@stsbl.de>  Tue, 20 Jun 2017 16:11:29 +0200
+
 scmcauthd (17.06.20-1) experimental; urgency=medium
 
   [ Felix Jacobi ]
