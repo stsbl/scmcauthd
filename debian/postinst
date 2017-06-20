@@ -8,5 +8,6 @@ adduser --system --home=/run/scmcauthd --no-create-home --ingroup scmcauthd scmc
 usermod scmcauthd -g scmcauthd -aG scmcshadow
 
 /usr/lib/scmcauthd/create_run_directory
+systemctl daemon-reload || true
 systemctl enable scmcauthd.service || true
 systemctl start scmcauthd.service || true
