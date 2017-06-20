@@ -3,9 +3,9 @@ set -e
 
 if [ "$1" = "remove" ]
 then
+  deluser --system scmcauthd
   delgroup --system scmcauthd
   delgroup --system scmcshadow
-  deluser --system scmcauthd
 
   rmdir /run/scmauthd || true
 fi
