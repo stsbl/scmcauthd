@@ -8,4 +8,5 @@ Standards-Version: 3.9.5
 
 Package: scmcauthd
 Architecture: all
+Depends: systemd
 Description: SCMC authentication daemon
