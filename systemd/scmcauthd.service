@@ -2,6 +2,7 @@
 [Unit]
 Description=Start scmcauthd
 After=postgresql.service
+After=sessauthd.service
 
 [Service]
 Type=forking
