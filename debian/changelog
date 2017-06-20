@@ -1,3 +1,10 @@
+scmcauthd (17.06.20-4) experimental; urgency=medium
+
+  [ Felix Jacobi ]
+  * Fixed postinst script.
+
+ -- Stadtteilschule Blankenese <repository@stsbl.de>  Tue, 20 Jun 2017 16:52:15 +0200
+
 scmcauthd (17.06.20-3) experimental; urgency=medium
 
   [ Felix Jacobi ]
