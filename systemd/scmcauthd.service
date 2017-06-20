@@ -8,8 +8,6 @@ Type=forking
 RemainAfterExit=yes
 SyslogIdentifier=scmcauthd
 PIDFile=/run/scmcauthd/pid
-PermissionsStartOnly=true
-ExecStartPre=/usr/lib/scmcauthd/create_run_directory
 ExecStart=/usr/sbin/scmcauthd -d
 User=scmcauthd
 

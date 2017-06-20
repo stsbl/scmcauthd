@@ -4,10 +4,12 @@ set -e
 addgroup --system scmcauthd
 addgroup --system scmcshadow
 
-adduser --system --home=/run/scmcauthd --no-create-home --ingroup scmcauthd scmcauthd
+adduser --system --home=/run/scmcauthd --ingroup scmcauthd scmcauthd
 usermod scmcauthd -g scmcauthd -aG scmcshadow
 
-/usr/lib/scmcauthd/create_run_directory
+chown scmcauthd:scmcauthd /run/scmcauthd
+chmod 0710 /run/scmcauthd
+
 systemctl daemon-reload || true
 systemctl enable scmcauthd.service || true
 systemctl start scmcauthd.service || true
