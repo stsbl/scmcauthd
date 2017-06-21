@@ -1,3 +1,6 @@
+# ensure that run directory exists
+MkDir 0710 scmcauthd:scmcauthd /run/scmcauthd 
+
 # allow scmcauthd to talk with sessauthd
 Test "add scmcauthd to sasl"
   "grep '^sasl:.*\bscmcauthd\b' /etc/group"
