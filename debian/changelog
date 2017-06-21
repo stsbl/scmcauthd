@@ -1,3 +1,10 @@
+scmcauthd (17.06.21-1) experimental; urgency=medium
+
+   [ Felix Jacobi }
+   * Added iservchk script for run directory.
+
+ -- Stadtteilschule Blankenese <repository@stsbl.de>  Wed, 21 Jun 2017 19:26:01 +0200
+
 scmcauthd (17.06.21-0) experimental; urgency=medium
 
    [ Felix Jacobi ]
