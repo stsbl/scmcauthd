@@ -1,3 +1,10 @@
+scmcauthd (17.06.29-0) experimental; urgency=medium
+
+   [ Felix Jacobi ]
+   * sql: Limit update privilege for scmcauthd.
+
+ -- Stadtteilschule Blankenese <repository@stsbl.de>  Thu, 29 Jun 2017 16:13:48 +0200
+
 scmcauthd (17.06.21-1) experimental; urgency=medium
 
    [ Felix Jacobi }
