@@ -8,5 +8,5 @@ Standards-Version: 3.9.5
 
 Package: scmcauthd
 Architecture: all
-Depends: systemd, libjson-perl
+Depends: perl-base, systemd, libjson-perl, libbytes-random-secure-perl
 Description: SCMC authentication daemon
