@@ -1,3 +1,10 @@
+scmcauthd (17.07.06-0) experimental; urgency=medium
+
+   [ Felix Jacobi ]
+   * Added missing dependencies.
+
+ -- Stadtteilschule Blankenese <repository@stsbl.de>  Thu, 06 Jul 2017 21:37:49 +0200
+
 scmcauthd (17.06.29-0) experimental; urgency=medium
 
    [ Felix Jacobi ]
