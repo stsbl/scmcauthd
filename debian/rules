@@ -9,16 +9,14 @@ binary-indep:
 	dh_testdir
 	dh_testroot
 	dh_prep
-	dh_installdirs
 	dh_testroot
 	dh_installchangelogs 
 	dh_compress
 	dh_fixperms
 	dh_iservinstall3
+	dh_installdeb
+	dh_installdocs
 	dh_gencontrol
-	cp -a $(CURDIR)/debian/postinst $(CURDIR)/debian/scmcauthd/DEBIAN/
-	cp -a $(CURDIR)/debian/postrm $(CURDIR)/debian/scmcauthd/DEBIAN/
-	cp -a $(CURDIR)/debian/prerm $(CURDIR)/debian/scmcauthd/DEBIAN/
 	dh_md5sums
 	dh_builddeb
 
