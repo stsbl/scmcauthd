@@ -10,4 +10,3 @@ then
   rmdir /run/scmauthd || true
 fi
 
-#DEBHELPER#
