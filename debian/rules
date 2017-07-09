@@ -15,6 +15,7 @@ binary-indep:
 	dh_fixperms
 	dh_iservinstall3
 	dh_installdocs
+	dh_installinit
 	dh_systemd_enable
 	dh_systemd_start
 	dh_installdeb
