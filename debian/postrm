@@ -7,7 +7,7 @@ then
   delgroup --system scmcauthd
   delgroup --system scmcshadow
 
-  rmdir /run/scmauthd || true
+  rmdir /run/scmcauthd || true
 fi
 
 #DEBHELPER#
