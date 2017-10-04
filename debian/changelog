@@ -1,3 +1,9 @@
+scmcauthd (17.10.05-0) experimental; urgency=medium
+
+  * Fixed typo in postrm script.
+
+ -- Felix Jacobi <felix.jacobi@iserv.eu>  Thu, 05 Oct 2017 01:00:44 +0200
+
 scmcauthd (17.07.09-0) experimental; urgency=medium
 
   [ Felix Jacobi ]
