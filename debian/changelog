@@ -1,3 +1,10 @@
+scmcauthd (17.10.24-1) experimental; urgency=medium
+
+  * Fixed several lintian issues.
+  * Added explicit db user.
+
+ -- Felix Jacobi <felix.jacobi@stsbl.de>  Tue, 24 Oct 2017 08:12:26 +0200
+
 scmcauthd (17.10.05-0) experimental; urgency=medium
 
   * Fixed typo in postrm script.
