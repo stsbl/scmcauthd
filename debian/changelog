@@ -1,3 +1,9 @@
+scmcauthd (17.12.02-2) experimental; urgency=medium
+
+  * Improved postinst script
+
+ -- Felix Jacobi <felix.jacobi@stsbl.de>  Sat, 02 Dec 2017 03:10:17 +0100
+
 scmcauthd (17.12.02-1) experimental; urgency=medium
 
   * Improved systemd unit
