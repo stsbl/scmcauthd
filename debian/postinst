@@ -4,7 +4,7 @@ set -e
 addgroup --system scmcauthd
 addgroup --system scmcshadow
 
-adduser --system --home=/run/scmcauthd --ingroup scmcauthd scmcauthd
+adduser --system --home /run/scmcauthd --ingroup scmcauthd scmcauthd
 usermod scmcauthd -g scmcauthd -aG scmcshadow
 
 mkdir -p /run/scmcauthd || true
