@@ -1,14 +1,18 @@
 # scmcauthd
 [Unit]
-Description=Start scmcauthd
-After=postgresql.service sessauthd.service
+Description=SCMC Session Authenticator 
+After=postgresql.service sessauthd.service remote-fs.target local-fs.target
 
 [Service]
-Type=forking
-RemainAfterExit=yes
-SyslogIdentifier=scmcauthd
-PIDFile=/run/scmcauthd/pid
 ExecStart=/usr/sbin/scmcauthd -d
+ExecStartPre=/bin/systemd-tmpfiles scmcauthd.conf --remove --create
+ExecStopPost=/bin/systemd-tmpfiles scmcauthd.conf --clean
+PermissionsStartOnly=true
+PIDFile=/run/scmcauthd/pid
+RemainAfterExit=yes
+Restart=on-failure
+SyslogIdentifier=scmcauthd
+Type=forking
 User=scmcauthd
 
 [Install]
