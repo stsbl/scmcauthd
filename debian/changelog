@@ -1,3 +1,9 @@
+scmcauthd (17.12.02-1) experimental; urgency=medium
+
+  * Improved systemd unit
+
+ -- Felix Jacobi <felix.jacobi@stsbl.de>  Sat, 02 Dec 2017 03:08:24 +0100
+
 scmcauthd (17.10.24-1) experimental; urgency=medium
 
   * Fixed several lintian issues.
