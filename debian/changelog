@@ -1,3 +1,13 @@
+scmcauthd (18.01.29-1) experimental; urgency=medium
+
+  [ Felix Jacobi ]
+  * Added license
+  * Updated copyright
+  * Added lintian overrides
+  * Fixed wrong session password array index
+
+ -- Felix jacobi <felix.jacobi@iserv.eu>  Mon, 29 Jan 2018 21:26:29 +0100
+
 scmcauthd (17.12.02-2) experimental; urgency=medium
 
   * Improved postinst script
