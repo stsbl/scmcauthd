@@ -347,7 +347,7 @@ sub talk($)
   my $scmcsesspw;
   if (@in > 5)
   {
-    $scmcsesspw = $in[5];
+    $scmcsesspw = $in[6];
   } else {
     logger "no scmc session password for $act from $log_ip provided";
   }
