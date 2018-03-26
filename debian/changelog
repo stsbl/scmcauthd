@@ -1,3 +1,9 @@
+scmcauthd (18.03.26-2) experimental; urgency=medium
+
+  * Removed empty script
+
+ -- Felix Jacobi <felix.jacobi@stsbl.de>  Mon, 26 Mar 2018 22:01:25 +0200
+
 scmcauthd (18.03.26-1) experimental; urgency=medium
 
   * Revert updated session password handling
