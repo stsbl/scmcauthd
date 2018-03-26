@@ -1,3 +1,10 @@
+scmcauthd (18.03.26-1) experimental; urgency=medium
+
+  * Revert updated session password handling
+  * Updated packaging
+
+ -- Felix Jacobi <felix.jacobi@stsbl.de>  Mon, 26 Mar 2018 22:00:07 +0200
+
 scmcauthd (18.01.29-1) experimental; urgency=medium
 
   [ Felix Jacobi ]
