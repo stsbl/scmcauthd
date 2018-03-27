@@ -1,6 +1,6 @@
 Source: scmcauthd
 Section: misc
-Priority: optional
+Priority: extra
 Maintainer: Stadtteilschule Blankenese <repository@stsbl.de>
 Build-Depends: debhelper (>= 10)
 Build-Depends-Indep: iserv3-dev, dh-systemd
