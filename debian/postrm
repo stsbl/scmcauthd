@@ -3,9 +3,9 @@ set -e
 
 if [ "$1" = "remove" ] || [ "$1" = "purge" ]
 then
-  deluser --system scmcauthd
-  delgroup --system scmcauthd
-  delgroup --system scmcshadow
+  userdel --force scmcauthd || true
+  groupdel scmcauthd || true
+  groupdel scmcshadow || true
 
   rmdir /run/scmcauthd || true
 fi
