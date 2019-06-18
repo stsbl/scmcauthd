@@ -1,3 +1,10 @@
+scmcauthd (19.06.18-1) experimental; urgency=medium
+
+  * Updated packaging
+  * Fixed postrm
+
+ -- Felix Jacobi <Felix@jacobi-hamburg.net>  Tue, 18 Jun 2019 22:12:20 +0200
+
 scmcauthd (18.03.27-1) experimental; urgency=medium
 
   * Fixed usage of session password
