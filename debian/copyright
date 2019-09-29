@@ -2,11 +2,11 @@ Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: scmcauthd
 
 Files: *
-Copyright: 2018 Felix Jacobi <felix.jacobi@iserv.eu>
+Copyright: 2019 Felix Jacobi <felix.jacobi@iserv.eu>
 License: MIT
 
 Files: debian/*
-Copyright: 2018 Stadtteilschule Blankenese <repository@stsbl.de>
+Copyright: 2019 Stadtteilschule Blankenese <repository@stsbl.de>
 License: MIT
 
 License: MIT
