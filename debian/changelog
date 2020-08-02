@@ -1,3 +1,9 @@
+scmcauthd (20.08.02-1) testing; urgency=medium
+
+  * Bumped copyright
+
+ -- Felix Jacobi <Felix@jacobi-hamburg.net>  Sun, 02 Aug 2020 06:32:18 +0200
+
 scmcauthd (19.06.18-1) experimental; urgency=medium
 
   * Updated packaging
