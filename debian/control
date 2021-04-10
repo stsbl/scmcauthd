@@ -1,18 +1,17 @@
 Source: scmcauthd
 Section: misc
-Priority: extra
+Priority: optional
 Maintainer: Stadtteilschule Blankenese <repository@stsbl.de>
-Build-Depends: debhelper (>= 10)
-Build-Depends-Indep: iserv-buildtools, dh-systemd
-Standards-Version: 4.1.3
+Build-Depends: debhelper-compat (= 13), dh-sequence-iserv, dh-sequence-stsbl
+Standards-Version: 4.5.0
 
 Package: scmcauthd
 Architecture: all
-Depends: ${misc:Depends},
-  ${perl:Depends},
-  libjson-perl,
-  libbytes-random-secure-perl,
-  adduser,
-Xb-Private-IServ-Revision: ${iserv:Revision}
+Depends: adduser,
+         libbytes-random-secure-perl,
+         libjson-perl,
+         ${misc:Depends},
+         ${perl:Depends}
+Xb-Private-Iserv-Revision: ${iserv:Revision}
 Description: SCMC authentication daemon
  Authentication daemon for the SCMC module.
